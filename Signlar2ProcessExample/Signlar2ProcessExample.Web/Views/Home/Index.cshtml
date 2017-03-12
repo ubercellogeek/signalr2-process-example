@@ -1,0 +1,75 @@
+﻿<html>
+<head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <style>
+        .bold-result{
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body style="margin-top:50px">
+    <div class="container">
+        <div class="form-group">
+            <label for="connectionID">SignalR Connection ID</label>
+            <input type="text" class="form-control" id="connectionID" readonly>
+        </div>
+        <div class="form-group">
+            <label for="processDuration">Process Duration (In Seconds)</label>
+            <input type="text" class="form-control" id="processDuration">
+        </div>
+        <div class="form-group">
+            <button id="process" class="btn btn-primary">Process</button>
+        </div>
+        <div class="form-group">
+            <label for="response">Process Response</label>
+            <textarea id="response" class="form-control bold-result" rows="20" readonly></textarea>
+        </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="http://ajax.aspnetcdn.com/ajax/signalr/jquery.signalr-2.2.1.min.js"></script>
+    <script src="http://localhost:52071/signalr/hubs"></script>
+    <script type="text/javascript">
+        $(function () {
+            // Setup defaults and variables
+            var signalrURL = "http://localhost:52071/signalr";
+            var apiURL = "http://localhost:52064/process/run";
+            $('#processDuration').val(10);
+            $.connection.hub.url = signalrURL;
+            var processHub = $.connection.processHub;
+
+            // This line has to be done here to let signalr know what this client can implement. Otherwise, 
+            // it will fail to subscribe to the hub on the server side.
+            processHub.client.processComplete = function (result) {
+                $('#process').prop('disabled', false);
+                $('#processDuration').prop('disabled', false);
+                $('#process').text('Process');
+             
+                $('#response').val(JSON.stringify(result, undefined, 4));
+            }
+
+            // If you wish to see detailed output from the signalr js client, uncomment the line below
+            $.connection.hub.logging = true;
+
+            // Start the hub's connection and setup any additional actions to take upon successful connection to SignalR.
+            $.connection.hub.start().done(function () {
+                $('#connectionID').val($.connection.hub.id);
+                $('#process').click(function () {
+                    $.post(apiURL, { ConnectionID: $.connection.hub.id, ProcessDuration: $('#processDuration').val() })
+                        .fail(function () {
+                            alert("Something went wrong when starting the long running task.");
+                        })
+                        .done(function () {
+                            $('#process').prop('disabled', true);
+                            $('#processDuration').prop('disabled', true);
+                            $('#response').val('');
+                            $('#process').text('Waiting for response...');
+                        });
+                });
+            }).fail(function (message) {
+                alert("There was an error subscribing to the SignalR hub: " + message);
+            });    
+        });
+    </script>
+</body>
+</html>
